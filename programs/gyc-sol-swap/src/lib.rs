@@ -1,11 +1,12 @@
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::system_program;
 use anchor_lang::solana_program::{
     program::{
-        invoke_signed, 
+        invoke_signed,
     },
     system_instruction::{
         transfer,
-        
+
     },
     sysvar::{
         rent::Rent
@@ -15,7 +16,7 @@ use anchor_lang::solana_program::{
 
 };
 use anchor_spl::{
-    associated_token::{ AssociatedToken, },
+    associated_token::{ self, AssociatedToken, },
     token::{self, Mint, Token, TokenAccount, Transfer},
 };
 
@@ -80,7 +81,7 @@ pub mod gyc_sol_swap {
 
         let sol_amount = amount.checked_mul(config.gyc_price).unwrap()
                             .checked_div(config.sol_price).unwrap();
-        
+
         if sol_amount > ctx.accounts.sol_vault.lamports() {
             return Err(ErrorCode::InsufficientSolBalance.into());
         }
@@ -186,7 +187,7 @@ pub struct Initialize<'info> {
 
     #[account(
         mut,
-        seeds = [config.to_account_info().key.as_ref()], 
+        seeds = [config.to_account_info().key.as_ref()],
         bump = vault_nonce,
     )]
     pub sol_vault: AccountInfo<'info>,
@@ -200,10 +201,20 @@ pub struct Initialize<'info> {
     pub token_vault: Account<'info, TokenAccount>,
 
     pub mint: Account<'info, Mint>,
+
+    #[account(address = token::ID)]
     pub token_program: Program<'info, Token>,
+
+    #[account(address = associated_token::ID)]
     pub associated_token_program: Program<'info, AssociatedToken>,
+
+    #[account(address = system_program::ID)]
     pub system_program: Program<'info, System>,
+
+    #[account(address = solana_program::sysvar::rent::ID)]
     pub rent: Sysvar<'info, Rent>,
+
+    #[account(address = solana_program::sysvar::clock::ID)]
     pub clock: Sysvar<'info, Clock>,
 }
 
@@ -245,6 +256,8 @@ pub struct UpdatePrice<'info> {
         constraint = config.authority == signer.key() @ErrorCode::Unauthorized,
     )]
     pub config: Box<Account<'info, SwapSettings>>,
+
+    #[account(address = solana_program::sysvar::clock::ID)]
     pub clock: Sysvar<'info, Clock>,
 }
 
@@ -269,7 +282,7 @@ pub struct GYCtoSOL<'info> {
 
     #[account(
         mut,
-        seeds = [config.to_account_info().key.as_ref()], 
+        seeds = [config.to_account_info().key.as_ref()],
         bump = config.vault_nonce,
     )]
     pub sol_vault: AccountInfo<'info>,
@@ -292,8 +305,13 @@ pub struct GYCtoSOL<'info> {
     )]
     pub config: Box<Account<'info, SwapSettings>>,
 
+    #[account(address = token::ID)]
     pub token_program: Program<'info, Token>,
+
+    #[account(address = associated_token::ID)]
     pub associated_token_program: Program<'info, AssociatedToken>,
+
+    #[account(address = system_program::ID)]
     pub system_program: Program<'info, System>,
 }
 
@@ -313,7 +331,7 @@ pub struct Withdrawal<'info> {
 
     #[account(
         mut,
-        seeds = [config.to_account_info().key.as_ref()], 
+        seeds = [config.to_account_info().key.as_ref()],
         bump = config.vault_nonce,
     )]
     pub sol_vault: AccountInfo<'info>,
@@ -338,6 +356,7 @@ pub struct Withdrawal<'info> {
 
     pub mint: Account<'info, Mint>,
 
+    #[account(address = token::ID)]
     pub token_program: Program<'info, Token>,
 
 }
@@ -399,5 +418,5 @@ pub enum ErrorCode {
     InvalidPrivileges,
     #[msg("The mint mismatch.")]
     InvalidMintMismatch,
-   
+
 }
